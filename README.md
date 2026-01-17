@@ -4,6 +4,8 @@
 
 这是一个与 StandX 交互的做市策略脚本，旨在通过智能挂单策略尽量无损获取挂单积分以及提升 maker uptime（挂单时长）。
 
+使用过程有任何问题可以加群交流：https://t.me/bitcat365/4979
+
 ## 核心特性
 
 1. **实时订单簿监控**：使用 WebSocket 获取实时订单簿数据，计算加权中间价，相比 Symbol Price 方式时效性更强，对价格更敏感。
@@ -28,20 +30,20 @@
 - 可访问币安 API 的网络环境
 - StandX 账户及 API 权限
 
-### 1. 创建虚拟环境
+### 1. 创建虚拟环境（可选，但推荐）
 
 建议使用 Python 虚拟环境来运行此项目，以避免依赖冲突。
 
 ```bash
 # 创建虚拟环境
-python -m venv venv
+python -m venv myvenv
 
 # 激活虚拟环境
 # Windows
-venv\Scripts\activate
+myvenv\Scripts\activate
 
 # macOS/Linux
-source venv/bin/activate
+source myvenv/bin/activate
 ```
 
 ### 2. 安装依赖
@@ -100,7 +102,7 @@ python only_maker.py
 - **仓位修复**：建议开启 `STANDX_MAKER_FIX_ORDER_ENABLED`，做到被吃单后修复仓位。
 - **自动平仓**：如需自动平仓模式（挂单成交后立即市价平仓，避免持仓风险），可开启 `STANDX_MAKER_AUTO_CLOSE_POSITION=true`。默认关闭，不影响原有做市逻辑。
 
-## StandX 钉钉通知配置
+## 钉钉通知配置（可选）
 
 支持在订单成交（被吃单）时推送钉钉机器人通知，包含地址和交易信息。
 
