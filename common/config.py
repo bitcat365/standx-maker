@@ -1,0 +1,36 @@
+"""
+配置文件
+现在优先从 .env 文件加载配置，未设置时使用默认值
+"""
+
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# 日志配置
+LOG_LEVEL = os.getenv('LOG_LEVEL', "INFO")
+LOG_FORMAT = os.getenv('LOG_FORMAT', "")
+
+# 代理配置
+PROXY_URL = os.getenv('PROXY_URL', '')
+
+STANDX_MAKER_API_TOKEN = os.getenv('STANDX_MAKER_API_TOKEN', '')
+STANDX_MAKER_ED25519_PRIVATE_KEY = os.getenv('STANDX_MAKER_ED25519_PRIVATE_KEY', '')
+
+# StandX Maker 策略配置
+STANDX_MAKER_SYMBOL = os.getenv('STANDX_MAKER_SYMBOL', 'BTC-USD')
+STANDX_MAKER_ORDER_DISTANCE_BPS = float(os.getenv('STANDX_MAKER_ORDER_DISTANCE_BPS', 8))
+STANDX_MAKER_CANCEL_DISTANCE_BPS = float(os.getenv('STANDX_MAKER_CANCEL_DISTANCE_BPS', 6))
+STANDX_MAKER_REBALANCE_DISTANCE_BPS = float(os.getenv('STANDX_MAKER_REBALANCE_DISTANCE_BPS', 10))
+STANDX_MAKER_ORDER_SIZE_BTC = float(os.getenv('STANDX_MAKER_ORDER_SIZE_BTC', 0.01))
+STANDX_MAKER_MAX_POSITION_BTC = float(os.getenv('STANDX_MAKER_MAX_POSITION_BTC', 0.02))
+STANDX_MAKER_MAX_ATR = float(os.getenv('STANDX_MAKER_MAX_ATR', 60))
+STANDX_MAKER_MAX_ORDERS_PER_SIDE = int(os.getenv('STANDX_MAKER_MAX_ORDERS_PER_SIDE', 2))
+STANDX_MAKER_SIDE_ORDER_GAP_BPS = float(os.getenv('STANDX_MAKER_SIDE_ORDER_GAP_BPS', 1))
+STANDX_MAKER_FIX_ORDER_ENABLED = os.getenv('STANDX_MAKER_FIX_ORDER_ENABLED', 'false').lower() == 'true'
+STANDX_MAKER_AUTO_CLOSE_POSITION = os.getenv('STANDX_MAKER_AUTO_CLOSE_POSITION', 'false').lower() == 'true'
+
+# 钉钉通知配置（webhook 为空时关闭通知）
+DINGTALK_WEBHOOK = os.getenv('DINGTALK_WEBHOOK', '')  # 完整的钉钉机器人 Webhook 地址
+DINGTALK_KEYWORD = os.getenv('DINGTALK_KEYWORD', 'Standx')  # 钉钉机器人关键词
