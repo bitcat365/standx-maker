@@ -56,7 +56,7 @@ class AbsoluteMoveDetector:
 
         mids = [p for _, p in self.prices]
         danger_move = max(mids) - min(mids)
-        self.danger_move = danger_move
+        self.danger_move = round(danger_move, 4)
 
         if danger_move >= self.danger_threshold:
             if self.state != "HIGH_RISK":

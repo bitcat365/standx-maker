@@ -331,11 +331,11 @@ class OnlyMakerStrategy:
             except Exception:
                 continue
 
-        bid_orders.sort(key=lambda x: x["price"], reverse=True)
-        ask_orders.sort(key=lambda x: x["price"])
+        bid_orders.sort(key=lambda x: x['price'], reverse=True)
+        ask_orders.sort(key=lambda x: x['price'])
 
-        self.open_orders["bid"] = bid_orders
-        self.open_orders["ask"] = ask_orders
+        self.open_orders['bid'] = bid_orders
+        self.open_orders['ask'] = ask_orders
         
         logger.info(f"同步订单：{self.open_orders}")
         
@@ -389,12 +389,12 @@ class OnlyMakerStrategy:
             try:
                 # 检查价格距离
                 logger.info("----- 当前状态 -----")
-                for o in self.open_orders["bid"]:
-                    delta_bps = abs(o["price"] - self.current_price) / self.current_price * 10000
-                    logger.info(f"当前买单: {o["id"]}, 价格：{o["price"]}, bps：{delta_bps}")
-                for o in self.open_orders["ask"]:
-                    delta_bps = abs(o["price"] - self.current_price) / self.current_price * 10000
-                    logger.info(f"当前卖单: {o["id"]}, 价格：{o["price"]}, bps：{delta_bps}")
+                for o in self.open_orders['bid']:
+                    delta_bps = abs(o['price'] - self.current_price) / self.current_price * 10000
+                    logger.info(f"当前买单: {o['id']}, 价格：{o['price']}, bps：{delta_bps}")
+                for o in self.open_orders['ask']:
+                    delta_bps = abs(o['price'] - self.current_price) / self.current_price * 10000
+                    logger.info(f"当前卖单: {o['id']}, 价格：{o['price']}, bps：{delta_bps}")
                 logger.info(f"当前价格：{self.current_price}, 持仓：{self.position_qty}, ATR：{self.current_atr:.4f}, move: {self.detector.danger_move}, 波动检查状态: {self.detector.state}")
                 logger.info("-------------------")
             except Exception as exc:
@@ -470,28 +470,28 @@ class OnlyMakerStrategy:
 
         kept: List[Dict[str, Any]] = []
         for order in orders:
-            delta_bps = abs(order["price"] - self.current_price) / self.current_price * 10000
+            delta_bps = abs(order['price'] - self.current_price) / self.current_price * 10000
             if delta_bps <= self.cfg.cancel_distance_bps or delta_bps >= self.cfg.rebalance_distance_bps:
-                logger.info(f"{side} 撤单，delta_bps={delta_bps:.2f}, order_id={order["id"]}, price={order['price']}, 当前价格: {self.current_price}")
-                await self.cancel_order(order["id"])
+                logger.info(f"{side} 撤单，delta_bps={delta_bps:.2f}, order_id={order['id']}, price={order['price']}, 当前价格: {self.current_price}")
+                await self.cancel_order(order['id'])
             else:
                 kept.append(order)
 
         # 超过最大允许数量时，保留距离较远的订单，取消距离近的风险单
         max_allowed = self.cfg.max_orders_per_side
         if len(kept) > max_allowed:
-            kept_sorted = sorted(kept, key=lambda o: abs(o["price"] - self.current_price), reverse=True)
+            kept_sorted = sorted(kept, key=lambda o: abs(o['price'] - self.current_price), reverse=True)
             to_keep = kept_sorted[:max_allowed]
             to_cancel = kept_sorted[max_allowed:]
             for order in to_cancel:
                 logger.info(f"{side} 撤单（超额裁剪） price={order['price']}")
-                await self.cancel_order(order["id"])
+                await self.cancel_order(order['id'])
             kept = to_keep
 
         if side == "bid":
-            kept.sort(key=lambda x: x["price"], reverse=True)
+            kept.sort(key=lambda x: x['price'], reverse=True)
         else:
-            kept.sort(key=lambda x: x["price"])
+            kept.sort(key=lambda x: x['price'])
         self.open_orders[side] = kept
 
     async def _ensure_side_orders(self, side: str, is_ask: bool, target_prices: List[float]):
@@ -503,7 +503,7 @@ class OnlyMakerStrategy:
 
         # logger.info(f"下单前存在订单: {self.open_orders}")
         for target_price in target_prices:
-            if any(round(o["price"], 2) == round(target_price, 2) for o in existing):
+            if any(round(o['price'], 2) == round(target_price, 2) for o in existing):
                 continue
             if len(existing) >= self.cfg.max_orders_per_side:
                 break
@@ -531,9 +531,9 @@ class OnlyMakerStrategy:
                 logger.warning(f"{side} 挂单失败 price={price} size={self.cfg.order_size_btc}")
 
         if side == "bid":
-            existing.sort(key=lambda x: x["price"], reverse=True)
+            existing.sort(key=lambda x: x['price'], reverse=True)
         else:
-            existing.sort(key=lambda x: x["price"])
+            existing.sort(key=lambda x: x['price'])
         self.open_orders[side] = existing
         # logger.info(f"下单后存在订单: {self.open_orders}")
 
@@ -684,7 +684,7 @@ class OnlyMakerStrategy:
                 # 风控：ATR、仓位
                 async with self._lock:
                     if self.current_atr is not None and self.current_atr > self.cfg.max_atr:
-                        if len(self.open_orders["bid"]) > 0 or len(self.open_orders["ask"]) > 0:
+                        if len(self.open_orders['bid']) > 0 or len(self.open_orders['ask']) > 0:
                             logger.info(f"ATR 超阈值，撤单并暂停挂单, current atr: {self.current_atr}, 当前价格: {self.current_price}")
                         await self.cancel_all()
                         self.atr_pause = True
@@ -706,14 +706,14 @@ class OnlyMakerStrategy:
             logger.exception(f"cancel_order error: {exc}")
 
     async def cancel_all(self):
-        order_ids = [o["id"] for side_orders in self.open_orders.values() for o in side_orders if o]
+        order_ids = [o['id'] for side_orders in self.open_orders.values() for o in side_orders if o]
         if not order_ids:
             return
         try:
             await self.adapter.cancel_grid_orders(order_ids)
         finally:
-            self.open_orders["bid"] = []
-            self.open_orders["ask"] = []
+            self.open_orders['bid'] = []
+            self.open_orders['ask'] = []
 
     async def _auto_close_position(self):
         """自动平仓：市价单平掉当前仓位"""
