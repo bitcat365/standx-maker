@@ -26,7 +26,7 @@
 
 ### 前置要求
 
-- Python 3.8+
+- Python 3.12+
 - 可访问币安 API 的网络环境
 - StandX 账户及 API 权限
 
