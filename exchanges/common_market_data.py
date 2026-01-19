@@ -21,63 +21,79 @@ logger = logging.getLogger(__name__)
 class AbsoluteMoveDetector:
     def __init__(
         self,
-        window_ms=200,
-        danger_threshold=60.0,
+        window_ms=300,
+        danger_threshold=40.0,
         recover_threshold=25.0,
+        decay_half_life_ms=600,
     ):
         self.window_ms = window_ms
         self.danger_threshold = danger_threshold
         self.recover_threshold = recover_threshold
-        self.danger_move = 0.0
+        self.decay_half_life_ms = decay_half_life_ms
 
-        self.prices = deque()  # (timestamp_ms, mid)
+        self.prices = deque()
         self.state = "NORMAL"
+
+        self.held_danger = 0.0
+        self.last_update = None
 
     def on_book(self, bid, ask):
         mid = (bid + ask) * 0.5
-        now = time.time() * 1000  # ms
+        now = time.monotonic() * 1000
 
-        # 忽略价格没变化的推送（关键）
         if self.prices and self.prices[-1][1] == mid:
+            self._decay(now)
             return
 
         self.prices.append((now, mid))
         self._expire_old(now)
-        self._check()
+        self._update_danger(now)
 
     def _expire_old(self, now):
         cutoff = now - self.window_ms
         while self.prices and self.prices[0][0] < cutoff:
             self.prices.popleft()
 
-    def _check(self):
+    def _instant_danger(self):
         if len(self.prices) < 2:
+            return 0.0
+        mids = [p for _, p in self.prices]
+        return max(mids) - min(mids)
+
+    def _decay(self, now):
+        if self.last_update is None:
+            self.last_update = now
+            return
+        dt = now - self.last_update
+        if dt <= 0:
             return
 
-        mids = [p for _, p in self.prices]
-        danger_move = max(mids) - min(mids)
-        self.danger_move = round(danger_move, 4)
+        decay = 0.5 ** (dt / self.decay_half_life_ms)
+        self.held_danger *= decay
+        self.last_update = now
 
-        if danger_move >= self.danger_threshold:
+    def _update_danger(self, now):
+        self._decay(now)
+        instant = self._instant_danger()
+        self.held_danger = max(self.held_danger, instant)
+        self.last_update = now
+        self._check_state()
+
+    def _check_state(self):
+        if self.held_danger >= self.danger_threshold:
             if self.state != "HIGH_RISK":
                 self.state = "HIGH_RISK"
-                self.on_high_risk(danger_move)
-        elif danger_move <= self.recover_threshold:
+                self.on_high_risk(self.held_danger)
+        elif self.held_danger <= self.recover_threshold:
             if self.state != "NORMAL":
                 self.state = "NORMAL"
-                self.on_recover(danger_move)
+                self.on_recover(self.held_danger)
 
-    def on_high_risk(self, danger_move):
-        print(
-            f"[HIGH_RISK] "
-            f"{danger_move:.2f} USDT in {self.window_ms}ms"
-        )
+    def on_high_risk(self, v):
+        print(f"[HIGH_RISK] held_danger={v:.2f}")
 
-    def on_recover(self, danger_move):
-        print(
-            f"[RECOVER] "
-            f"{danger_move:.2f} USDT"
-        )
+    def on_recover(self, v):
+        print(f"[RECOVER] held_danger={v:.2f}")
 
 class BinanceMarketData:
     """

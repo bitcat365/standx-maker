@@ -96,8 +96,9 @@ class OnlyMakerStrategy:
         # 波动检测器
         self.detector = AbsoluteMoveDetector(
             window_ms=200,          # 你撤单反应时间附近
-            danger_threshold=60.0,
-            recover_threshold=35.0
+            danger_threshold=45.0,
+            recover_threshold=25.0,
+            decay_half_life_ms=300,
         )
 
         # open_orders: {"bid": [{"id": str, "price": float}, ...], "ask": [...]}
@@ -391,11 +392,11 @@ class OnlyMakerStrategy:
                 logger.info("----- 当前状态 -----")
                 for o in self.open_orders['bid']:
                     delta_bps = abs(o['price'] - self.current_price) / self.current_price * 10000
-                    logger.info(f"当前买单: {o['id']}, 价格：{o['price']}, bps：{delta_bps}")
+                    logger.info(f"当前买单: {o['id']}, 价格：{o['price']}, bps：{delta_bps:.4f}")
                 for o in self.open_orders['ask']:
                     delta_bps = abs(o['price'] - self.current_price) / self.current_price * 10000
-                    logger.info(f"当前卖单: {o['id']}, 价格：{o['price']}, bps：{delta_bps}")
-                logger.info(f"当前价格：{self.current_price}, 持仓：{self.position_qty}, ATR：{self.current_atr:.4f}, move: {self.detector.danger_move}, 波动检查状态: {self.detector.state}")
+                    logger.info(f"当前卖单: {o['id']}, 价格：{o['price']}, bps：{delta_bps:.4f}")
+                logger.info(f"当前价格：{self.current_price}, 持仓：{self.position_qty}, ATR：{self.current_atr:.2f}, move: {self.detector.held_danger:.2f}, 波动检查状态: {self.detector.state}")
                 logger.info("-------------------")
             except Exception as exc:
                 logger.exception(f"同步状态异常: {exc}")
@@ -587,10 +588,10 @@ class OnlyMakerStrategy:
                 # 检查波动检测器状态
                 if self.detector.state == "HIGH_RISK":
                     self.detector_pause = True
-                    logger.debug(f"波动检测器状态: {self.detector.state}, move: {self.detector.danger_move:.2f}, 暂停挂单")
+                    logger.debug(f"波动检测器状态: {self.detector.state}, move: {self.detector.held_danger:.2f}, 暂停挂单")
                 else:
                     self.detector_pause = False
-                    logger.debug(f"波动检测器状态: {self.detector.state}, move: {self.detector.danger_move:.2f}")
+                    logger.debug(f"波动检测器状态: {self.detector.state}, move: {self.detector.held_danger:.2f}")
                        
             except asyncio.CancelledError:
                 break
