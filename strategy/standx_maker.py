@@ -96,9 +96,9 @@ class OnlyMakerStrategy:
         # 波动检测器
         self.detector = AbsoluteMoveDetector(
             window_ms=200,          # 你撤单反应时间附近
-            danger_threshold=45.0,
+            danger_threshold=50.0,
             recover_threshold=25.0,
-            decay_half_life_ms=300,
+            decay_half_life_ms=1200,
         )
 
         # open_orders: {"bid": [{"id": str, "price": float}, ...], "ask": [...]}
@@ -580,7 +580,7 @@ class OnlyMakerStrategy:
     # 波动监控
     # ------------------------------------------------------------------
     async def _volatility_monitor_loop(self):
-        """每秒监控一次波动检测器的状态和vol_ratio。"""
+        """监控波动检测器的状态"""
         while self._running:
             try:
                 await asyncio.sleep(0.1)  # 每0.1秒检查一次

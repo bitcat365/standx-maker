@@ -824,7 +824,7 @@ class StandXAdapter(ExchangeInterface):
             binance_data = BinanceMarketData()
             
             # Get klines from Binance
-            df = binance_data.get_klines_df(
+            df = await binance_data.get_klines_df(
                 symbol=binance_symbol,
                 interval=binance_interval,
                 limit=count_back

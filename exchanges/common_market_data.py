@@ -21,10 +21,10 @@ logger = logging.getLogger(__name__)
 class AbsoluteMoveDetector:
     def __init__(
         self,
-        window_ms=300,
+        window_ms=200,
         danger_threshold=40.0,
         recover_threshold=25.0,
-        decay_half_life_ms=600,
+        decay_half_life_ms=1000,
     ):
         self.window_ms = window_ms
         self.danger_threshold = danger_threshold
@@ -75,7 +75,11 @@ class AbsoluteMoveDetector:
     def _update_danger(self, now):
         self._decay(now)
         instant = self._instant_danger()
-        self.held_danger = max(self.held_danger, instant)
+        alpha = 0.7  # 峰值继承权重
+        self.held_danger = max(
+            self.held_danger,
+            alpha * instant + (1 - alpha) * self.held_danger
+        )
         self.last_update = now
         self._check_state()
 
@@ -181,7 +185,7 @@ class BinanceMarketData:
                 print(f"WebSocket异常[{exc_type}]: {exc!r}，{reconnect_delay}s后重连……")
                 await asyncio.sleep(reconnect_delay)
 
-    def get_klines(self, symbol: str, interval: str, limit: int = 100, **kwargs) -> List[Dict]:
+    async def get_klines(self, symbol: str, interval: str, limit: int = 100, **kwargs) -> List[Dict]:
         """
         获取K线数据
         
@@ -198,17 +202,20 @@ class BinanceMarketData:
         params = {
             "symbol": symbol,
             "interval": interval,
-            "limit": limit,
+            "limit": str(limit),
             **kwargs
         }
         
         url = self.base_url + endpoint
-        response = requests.get(url, params=params)
         
-        if response.status_code != 200:
-            raise Exception(f"Failed to fetch data: {response.status_code} - {response.text}")
-        
-        data = response.json()
+        timeout = aiohttp.ClientTimeout(total=10)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(url, params=params) as response:
+                if response.status != 200:
+                    text = await response.text()
+                    raise Exception(f"Failed to fetch data: {response.status} - {text}")
+                
+                data = await response.json()
         
         # 转换为更易读的格式
         klines = []
@@ -231,7 +238,7 @@ class BinanceMarketData:
         
         return klines
     
-    def get_klines_df(self, symbol: str, interval: str, limit: int = 100, **kwargs) -> pd.DataFrame:
+    async def get_klines_df(self, symbol: str, interval: str, limit: int = 100, **kwargs) -> pd.DataFrame:
         """
         获取K线数据并转换为DataFrame
         
@@ -244,12 +251,13 @@ class BinanceMarketData:
         Returns:
             pd.DataFrame: K线数据DataFrame
         """
-        klines = self.get_klines(symbol, interval, limit, **kwargs)
+        klines = await self.get_klines(symbol, interval, limit, **kwargs)
         df = pd.DataFrame(klines)
         
         # 转换时间戳为可读格式
-        df['open_time'] = pd.to_datetime(df['open_time'], unit='ms')
-        df['close_time'] = pd.to_datetime(df['close_time'], unit='ms')
+        if not df.empty:
+            df['open_time'] = pd.to_datetime(df['open_time'], unit='ms')
+            df['close_time'] = pd.to_datetime(df['close_time'], unit='ms')
         
         return df
     
