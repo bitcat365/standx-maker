@@ -700,8 +700,8 @@ class OnlyMakerStrategy:
                 # 风控：ATR、仓位
                 async with self._lock:
                     if self.current_atr is not None and self.current_atr > self.cfg.max_atr:
-                        await self.cancel_all()
                         if len(self.open_orders['bid']) > 0 or len(self.open_orders['ask']) > 0:
+                            await self.cancel_all()
                             logger.info(f"ATR 超阈值，撤单并暂停挂单, current atr: {self.current_atr}, 当前价格: {self.current_price}")
                         self.atr_pause = True
                     else:
