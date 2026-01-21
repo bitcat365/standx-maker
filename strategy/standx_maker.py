@@ -599,14 +599,15 @@ class OnlyMakerStrategy:
                 await asyncio.sleep(0.1)  # 每0.1秒检查一次
                  
                 # 检查波动检测器状态
-                if self.detector.state == "HIGH_RISK":
-                    self.detector_pause = True
-                    await self.cancel_all()
-                    if len(self.open_orders['bid']) > 0 or len(self.open_orders['ask']) > 0:
-                        logger.info(f"波动检测器状态: {self.detector.state}, move: {self.detector.held_danger:.2f}, 取消并暂停挂单")
-                else:
-                    self.detector_pause = False
-                    logger.debug(f"波动检测器状态: {self.detector.state}, move: {self.detector.held_danger:.2f}")
+                async with self._lock:
+                    if self.detector.state == "HIGH_RISK":
+                        self.detector_pause = True
+                        if len(self.open_orders['bid']) > 0 or len(self.open_orders['ask']) > 0:
+                            await self.cancel_all()
+                            logger.info(f"波动检测器状态: {self.detector.state}, move: {self.detector.held_danger:.2f}, 取消并暂停挂单")
+                    else:
+                        self.detector_pause = False
+                        logger.debug(f"波动检测器状态: {self.detector.state}, move: {self.detector.held_danger:.2f}")
                        
             except asyncio.CancelledError:
                 break
