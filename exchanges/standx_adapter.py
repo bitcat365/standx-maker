@@ -1300,37 +1300,37 @@ class StandXAdapter(ExchangeInterface):
             logger.warning(f"Order response error for request {request_id}: {message.get('message')}")
 
     async def close(self):
-            """
-            Close connections."""
-            try:
-                # Close WebSocket connections
-                if self.ws_task and not self.ws_task.done():
-                    self.ws_task.cancel()
-                    try:
-                        await self.ws_task
-                    except asyncio.CancelledError:
-                        pass
-                
-                # Reset WebSocket state flags
-                self.ws_initialized = False
-                self.ws_market_authed = False
-                self.ws_market_ready.clear()
-                self.ws_market_client = None
-                if self.ws_order_client:
-                    await self.ws_order_client.close()
-                self.ws_order_client = None
-                self.ws_order_ready.clear()
-                self.ws_order_authed.clear()
-                self.pending_order_futures.clear()
-                self.ws_task = None
-                
-                # Close HTTP session
-                if self.session:
-                    await self.session.close()
-                     
-                logger.info("StandX connections closed")
-            except Exception as e:
-                logger.error(f"Error closing connections: {e}")
+        """
+        Close connections."""
+        try:
+            # Close WebSocket connections
+            if self.ws_task and not self.ws_task.done():
+                self.ws_task.cancel()
+                try:
+                    await self.ws_task
+                except asyncio.CancelledError:
+                    pass
+            
+            # Reset WebSocket state flags
+            self.ws_initialized = False
+            self.ws_market_authed = False
+            self.ws_market_ready.clear()
+            self.ws_market_client = None
+            if self.ws_order_client:
+                await self.ws_order_client.close()
+            self.ws_order_client = None
+            self.ws_order_ready.clear()
+            self.ws_order_authed.clear()
+            self.pending_order_futures.clear()
+            self.ws_task = None
+            
+            # Close HTTP session
+            if self.session:
+                await self.session.close()
+                    
+            logger.info("StandX connections closed")
+        except Exception as e:
+            logger.error(f"Error closing connections: {e}")
 
     async def initialize_client(self) -> None:
         """
