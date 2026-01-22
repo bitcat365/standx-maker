@@ -447,11 +447,11 @@ class OnlyMakerStrategy:
                     if self.atr_pause or self.detector_pause:
                         continue
 
-                    # 检查行情数据心跳（3秒超时）
+                    # 检查行情数据心跳（2秒超时）
                     if self.last_market_stats_time is not None:
                         current_time = time.time()
                         time_since_last = current_time - self.last_market_stats_time
-                        if time_since_last > 3.0:
+                        if time_since_last > 2.0:
                             logger.warning(f"行情数据超时，距离上次更新已过 {time_since_last:.1f} 秒，暂停挂单并撤单")
                             await self.cancel_all()
                             continue
