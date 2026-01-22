@@ -36,7 +36,7 @@ class MakerConfig:
     fix_order_enable: bool = False  # 是否启用仓位修复单
     auto_close_position: bool = False  # 是否自动平仓（挂单成交后立即平仓）
 
-    atr_period: int = 3  # ATR周期
+    atr_period: int = 4  # ATR周期
     atr_resolution: str = "1m"
     atr_count_back: int = 5
     atr_refresh_sec: int = 2  # ATR 更新时间
@@ -96,7 +96,7 @@ class OnlyMakerStrategy:
         # 波动检测器
         self.detector = AbsoluteMoveDetector(
             window_ms=200,          # 你撤单反应时间附近
-            danger_threshold=50.0,
+            danger_threshold=45.0,
             recover_threshold=25.0,
             decay_half_life_ms=1200,
         )
@@ -727,10 +727,16 @@ class OnlyMakerStrategy:
         if not order_ids:
             return
         try:
-            await self.adapter.cancel_grid_orders(order_ids)
-        finally:
-            self.open_orders['bid'] = []
-            self.open_orders['ask'] = []
+            cancelled_ids = await self.adapter.cancel_grid_orders(order_ids)
+            cancelled_set = set(cancelled_ids)
+            
+            for side in list(self.open_orders.keys()):
+                self.open_orders[side] = [
+                    o for o in self.open_orders[side] 
+                    if o['id'] not in cancelled_set
+                ]
+        except Exception as exc:
+            logger.exception(f"cancel_all error: {exc}")
 
     async def _auto_close_position(self):
         """自动平仓：市价单平掉当前仓位"""

@@ -582,14 +582,16 @@ class StandXAdapter(ExchangeInterface):
             logger.error(f"place_single_market_order error: {e}")
             return False, ''
 
-    async def cancel_grid_orders(self, order_ids: List[str]) -> bool:
+    async def cancel_grid_orders(self, order_ids: List[str]) -> List[str]:
         """
         Cancel orders via StandX WS order:cancel（逐单发送，兼容原批量接口）。
+        Returns list of successfully cancelled order IDs.
         """
         if not order_ids:
             logger.warning("cancel_grid_orders: No order_ids provided")
-            return True
+            return []
 
+        cancelled_ids = []
         try:
             for cl_ord_id in order_ids:
                 payload = {"cl_ord_id": cl_ord_id}
@@ -599,14 +601,16 @@ class StandXAdapter(ExchangeInterface):
                     payload,
                     header=body_signature
                 )
-                if not (isinstance(response, dict) and response.get("code") == 0):
+                if isinstance(response, dict) and response.get("code") == 0:
+                    cancelled_ids.append(cl_ord_id)
+                else:
                     logger.error(f"Failed to cancel order {cl_ord_id} via WS: {response}")
-                    return False
-            logger.debug(f"Successfully cancelled {len(order_ids)} orders via WS")
-            return True
+
+            logger.debug(f"Successfully cancelled {len(cancelled_ids)}/{len(order_ids)} orders via WS")
+            return cancelled_ids
         except Exception as e:
             logger.error(f"cancel_grid_orders error: {e}")
-            return False
+            return cancelled_ids
 
     async def modify_grid_order(self, order_id: str, new_price: float, new_amount: float) -> bool:
         """
@@ -615,8 +619,8 @@ class StandXAdapter(ExchangeInterface):
         try:
             # To modify an order in StandX, we need to cancel and create a new one
             # First cancel the existing order
-            cancel_success = await self.cancel_grid_orders([order_id])
-            if not cancel_success:
+            cancelled_ids = await self.cancel_grid_orders([order_id])
+            if not cancelled_ids:
                 logger.error(f"Failed to cancel order {order_id} for modification")
                 return False
             
