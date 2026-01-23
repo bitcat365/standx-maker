@@ -96,7 +96,7 @@ class OnlyMakerStrategy:
         # 波动检测器
         self.detector = AbsoluteMoveDetector(
             window_ms=200,          # 你撤单反应时间附近
-            danger_threshold=45.0,
+            danger_threshold=35.0,
             recover_threshold=25.0,
             decay_half_life_ms=1200,
         )
