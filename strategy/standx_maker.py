@@ -372,7 +372,7 @@ class OnlyMakerStrategy:
                 # 自动平仓模式：有仓位时立即市价平仓
                 if self.cfg.auto_close_position and self.position_qty != 0:
                     await self._auto_close_position()
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(10)
                     continue
 
                 # 仓位修复检查
