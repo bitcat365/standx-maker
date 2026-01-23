@@ -114,6 +114,7 @@ class OnlyMakerStrategy:
         self._detector_monitor_task: Optional[asyncio.Task] = None
         self._binance_market_task: Optional[asyncio.Task] = None
         self._reconcile_orders_task: Optional[asyncio.Task] = None
+        self._position_repair_task: Optional[asyncio.Task] = None
         self.last_market_stats_time: Optional[float] = None
         self.binance_market_data = None
         self.binance_stop_event = asyncio.Event()
@@ -163,6 +164,8 @@ class OnlyMakerStrategy:
         self._binance_market_task = asyncio.create_task(self._start_binance_market_data())
         # 启动订单处理任务
         self._reconcile_orders_task = asyncio.create_task(self._reconcile_orders())
+        # 启动仓位修复检查任务 (10s 循环)
+        self._position_repair_task = asyncio.create_task(self._position_repair_loop())
         logger.info("OnlyMakerStrategy started")
 
     async def stop(self):
@@ -177,6 +180,7 @@ class OnlyMakerStrategy:
             self._detector_monitor_task,
             self._binance_market_task,
             self._reconcile_orders_task,
+            self._position_repair_task,
         ]
 
         # 先取消所有后台任务（不等待），确保 WS 仍活跃以便撤单
@@ -277,11 +281,6 @@ class OnlyMakerStrategy:
                 
                 self.position_qty = new_qty
             
-            # 自动平仓模式：有仓位时立即市价平仓
-            if self.cfg.auto_close_position and self.position_qty != 0:
-                await self._auto_close_position()
-                return
-            
             if self.position_qty == 0 and self.fix_order is not None:
                 # 无仓位时撤掉修复单
                 cancel_order_ids = [self.fix_order['id']]
@@ -352,16 +351,32 @@ class OnlyMakerStrategy:
                     orders = await self.adapter.get_orders_by_rest()
                     await self._refresh_open_orders(orders)
                     
+            except asyncio.CancelledError:
+                break
+            except Exception as exc:
+                logger.exception(f"订单同步任务异常: {exc}")
+
+    async def _position_repair_loop(self):
+        """仓位检查与修复任务，10秒循环一次"""
+        while self._running:
+            try:
+                positions = await self.adapter.get_positions()
+                pos = positions.get(self.cfg.symbol) or positions.get(self.cfg.symbol.replace("-", "/"))
+                if not pos:
+                    await asyncio.sleep(10)
+                    continue
+                    
+                qty = pos.get("qty")
+                if qty is not None:
+                    self.position_qty = float(qty)
+                # 自动平仓模式：有仓位时立即市价平仓
+                if self.cfg.auto_close_position and self.position_qty != 0:
+                    await self._auto_close_position()
+                    await asyncio.sleep(1)
+                    continue
+
                 # 仓位修复检查
                 if self.cfg.fix_order_enable:
-                    positions = await self.adapter.get_positions()
-                    pos = positions.get(self.cfg.symbol) or positions.get(self.cfg.symbol.replace("-", "/"))
-                    if not pos:
-                        return
-                    qty = pos.get("qty")
-                    if qty is not None:
-                        self.position_qty = float(qty)
-                        
                     if self.position_qty != 0:
                         if self.fix_order is not None:
                             if abs(self.fix_order['amount']) == abs(self.position_qty):
@@ -380,11 +395,13 @@ class OnlyMakerStrategy:
                         await self.adapter.cancel_grid_orders(cancel_order_ids)
                         logger.info(f"无仓位，修复订单撤单: {self.fix_order}")
                         self.fix_order = None
-                    
+
             except asyncio.CancelledError:
                 break
             except Exception as exc:
-                logger.exception(f"订单同步任务异常: {exc}")
+                logger.exception(f"仓位修复任务异常: {exc}")
+            
+            await asyncio.sleep(10)
 
     async def _check_status_loop(self):
         """同步运行状态"""
